@@ -1,6 +1,44 @@
+// package.json
+{
+  "name": "malay-learning-game",
+  "version": "0.1.0",
+  "private": true,
+  "homepage": "https://[your-username].github.io/malay-learning-game",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build"
+  }
+}
+
+// src/App.js
+import React from 'react';
+import ZombieGame from './components/ZombieGame';
+
+function App() {
+  return (
+    <div className="App">
+      <ZombieGame />
+    </div>
+  );
+}
+
+export default App;
+
+// src/components/ZombieGame.js
 import React, { useState, useEffect } from 'react';
+import './ZombieGame.css';
 
 const ZombieGame = () => {
+  // 状态定义
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
   const [gameOver, setGameOver] = useState(false);
@@ -9,11 +47,9 @@ const ZombieGame = () => {
   const [answerGenerated, setAnswerGenerated] = useState(false);
   const [questionCount, setQuestionCount] = useState(0);
   const [level, setLevel] = useState(1);
-  
-  // 每关答对10题
+
+  // 常量定义
   const QUESTIONS_PER_LEVEL = 10;
-  
-  // 将屏幕横向划分为6个区域，确保僵尸不会重叠
   const POSITION_ZONES = [
     { min: 5, max: 20 },
     { min: 25, max: 35 },
@@ -22,8 +58,7 @@ const ZombieGame = () => {
     { min: 70, max: 80 },
     { min: 85, max: 95 }
   ];
-  
-  // 词库：[马来文, 中文] 格式
+
   const wordBank = [
     ['memerlukan', '需要'],
     ['lauk-pauk', '菜肴'],
@@ -47,7 +82,7 @@ const ZombieGame = () => {
     ['pandangan', '意见']
   ];
 
-  // 获取随机位置区域
+  // 获取随机位置
   const getRandomPosition = (usedPositions) => {
     const availableZones = POSITION_ZONES.filter((_, index) => 
       !usedPositions.includes(index)
@@ -62,7 +97,7 @@ const ZombieGame = () => {
     };
   };
 
-  // 生成新问题
+  // 生成问题
   const generateQuestion = () => {
     const randomPair = wordBank[Math.floor(Math.random() * wordBank.length)];
     setAnswerGenerated(false);
@@ -72,12 +107,12 @@ const ZombieGame = () => {
     };
   };
 
-  // 生成新僵尸
+  // 生成僵尸
   const generateZombie = (forceAnswer = false) => {
     const usedPositions = zombies.map(z => z.zoneIndex);
     const positionData = getRandomPosition(usedPositions);
     
-    if (!positionData) return null; // 如果没有可用位置，不生成僵尸
+    if (!positionData) return null;
 
     if (forceAnswer || (!answerGenerated && currentQuestion)) {
       setAnswerGenerated(true);
@@ -106,13 +141,14 @@ const ZombieGame = () => {
     }
   };
 
-  // 开始新游戏或新关卡
+  // 开始新关卡
   const startNewLevel = () => {
     setZombies([]);
     setAnswerGenerated(false);
     setCurrentQuestion(generateQuestion());
   };
 
+  // 开始新游戏
   const startNewGame = () => {
     setScore(0);
     setLives(3);
@@ -122,16 +158,15 @@ const ZombieGame = () => {
     startNewLevel();
   };
 
-  // 游戏初始化
+  // 初始化
   useEffect(() => {
     startNewGame();
   }, []);
 
-  // 定期生成僵尸
+  // 生成僵尸
   useEffect(() => {
     if (gameOver) return;
     
-    // 立即生成正确答案的僵尸
     if (!answerGenerated && currentQuestion) {
       const zombie = generateZombie(true);
       if (zombie) {
@@ -149,7 +184,7 @@ const ZombieGame = () => {
     return () => clearInterval(interval);
   }, [gameOver, currentQuestion, answerGenerated]);
 
-  // 僵尸移动
+  // 移动僵尸
   useEffect(() => {
     if (gameOver) return;
 
@@ -177,7 +212,7 @@ const ZombieGame = () => {
     return () => clearInterval(moveInterval);
   }, [gameOver]);
 
-  // 点击僵尸
+  // 点击处理
   const handleClick = (zombie) => {
     if (gameOver) return;
 
@@ -186,7 +221,6 @@ const ZombieGame = () => {
       setQuestionCount(prev => {
         const newCount = prev + 1;
         if (newCount >= QUESTIONS_PER_LEVEL) {
-          // 完成当前关卡
           setLevel(level + 1);
           setQuestionCount(0);
           startNewLevel();
@@ -209,59 +243,49 @@ const ZombieGame = () => {
   };
 
   return (
-    <div className="relative h-screen w-full bg-gray-900 overflow-hidden">
-      {/* 状态栏 */}
-      <div className="absolute top-0 left-0 right-0 p-4 flex justify-between bg-gray-800 text-white">
-        <div className="flex space-x-8">
+    <div className="game-container">
+      <div className="status-bar">
+        <div className="status-left">
           <div>第 {level} 关</div>
           <div>题目: {questionCount}/{QUESTIONS_PER_LEVEL}</div>
           <div>分数: {score}</div>
         </div>
-        <div>生命值: {'❤️'.repeat(lives)}</div>
+        <div className="lives">生命值: {'❤️'.repeat(lives)}</div>
       </div>
 
-      {/* 当前题目 */}
-      <div className="absolute top-20 left-0 right-0 text-center text-white text-2xl font-bold bg-gray-800 bg-opacity-75 py-4">
+      <div className="question">
         请选择"{currentQuestion?.chinese}"的马来文
       </div>
 
-      {/* 僵尸 */}
       {zombies.map(zombie => (
         <div
           key={zombie.id}
-          className="absolute cursor-pointer transition-transform hover:scale-110"
+          className="zombie"
           style={{
             left: `${zombie.position}%`,
             top: zombie.top,
           }}
           onClick={() => handleClick(zombie)}
         >
-          <div className="bg-green-700 p-2 rounded-lg shadow-lg">
-            <span className="text-white font-bold">{zombie.word}</span>
-          </div>
-          <div className="text-4xl">🧟</div>
+          <div className="zombie-word">{zombie.word}</div>
+          <div className="zombie-emoji">🧟</div>
         </div>
       ))}
 
-      {/* 游戏结束对话框 */}
       {gameOver && (
-        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white p-8 rounded-lg text-center">
-            <h2 className="text-2xl font-bold mb-4">游戏结束!</h2>
-            <p className="mb-2">最终得分: {score}</p>
-            <p className="mb-4">达到第 {level} 关</p>
-            <button
-              onClick={startNewGame}
-              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-            >
+        <div className="game-over">
+          <div className="game-over-content">
+            <h2>游戏结束!</h2>
+            <p>最终得分: {score}</p>
+            <p>达到第 {level} 关</p>
+            <button onClick={startNewGame}>
               重新开始
             </button>
           </div>
         </div>
       )}
 
-      {/* 游戏说明 */}
-      <div className="absolute bottom-4 left-4 text-white text-sm">
+      <div className="instructions">
         <p>点击对应题目的马来文僵尸得分</p>
         <p>每关需答对10题才能进入下一关</p>
         <p>点错或让僵尸触底都会扣生命值</p>
@@ -272,3 +296,105 @@ const ZombieGame = () => {
 };
 
 export default ZombieGame;
+
+// src/components/ZombieGame.css
+.game-container {
+  position: relative;
+  height: 100vh;
+  width: 100%;
+  background-color: #1a1a1a;
+  overflow: hidden;
+}
+
+.status-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+  background-color: #333;
+  color: white;
+}
+
+.status-left {
+  display: flex;
+  gap: 2rem;
+}
+
+.question {
+  position: absolute;
+  top: 80px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: white;
+  font-size: 1.5rem;
+  font-weight: bold;
+  background-color: rgba(51, 51, 51, 0.8);
+  padding: 1rem;
+}
+
+.zombie {
+  position: absolute;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.zombie:hover {
+  transform: scale(1.1);
+}
+
+.zombie-word {
+  background-color: #2b7a2b;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  color: white;
+  font-weight: bold;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.zombie-emoji {
+  font-size: 2.5rem;
+  text-align: center;
+}
+
+.game-over {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.game-over-content {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 0.5rem;
+  text-align: center;
+}
+
+.game-over-content button {
+  background-color: #2b7a2b;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+.game-over-content button:hover {
+  background-color: #1f5f1f;
+}
+
+.instructions {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  color: white;
+  font-size: 0.875rem;
+}
