@@ -1,0 +1,274 @@
+import React, { useState, useEffect } from 'react';
+
+const ZombieGame = () => {
+  const [score, setScore] = useState(0);
+  const [lives, setLives] = useState(3);
+  const [gameOver, setGameOver] = useState(false);
+  const [zombies, setZombies] = useState([]);
+  const [currentQuestion, setCurrentQuestion] = useState(null);
+  const [answerGenerated, setAnswerGenerated] = useState(false);
+  const [questionCount, setQuestionCount] = useState(0);
+  const [level, setLevel] = useState(1);
+  
+  // 每关答对10题
+  const QUESTIONS_PER_LEVEL = 10;
+  
+  // 将屏幕横向划分为6个区域，确保僵尸不会重叠
+  const POSITION_ZONES = [
+    { min: 5, max: 20 },
+    { min: 25, max: 35 },
+    { min: 40, max: 50 },
+    { min: 55, max: 65 },
+    { min: 70, max: 80 },
+    { min: 85, max: 95 }
+  ];
+  
+  // 词库：[马来文, 中文] 格式
+  const wordBank = [
+    ['memerlukan', '需要'],
+    ['lauk-pauk', '菜肴'],
+    ['kegemaran', '喜欢的'],
+    ['bergerak', '移动'],
+    ['pengetahuan', '知识'],
+    ['penyabar', '有耐心的'],
+    ['merawat', '治疗'],
+    ['panggil', '叫'],
+    ['lemau', '皮了'],
+    ['gopoh', '匆忙'],
+    ['memainkan', '扮演'],
+    ['mencabut', '拔除'],
+    ['pengalaman', '经验'],
+    ['perpustakaan', '图书馆'],
+    ['mendaftarkan', '注册'],
+    ['kaedah', '方法'],
+    ['sebenarnya', '事实上'],
+    ['selidik', '调查'],
+    ['peluang', '机会'],
+    ['pandangan', '意见']
+  ];
+
+  // 获取随机位置区域
+  const getRandomPosition = (usedPositions) => {
+    const availableZones = POSITION_ZONES.filter((_, index) => 
+      !usedPositions.includes(index)
+    );
+    if (availableZones.length === 0) return null;
+    
+    const randomZone = availableZones[Math.floor(Math.random() * availableZones.length)];
+    const position = Math.random() * (randomZone.max - randomZone.min) + randomZone.min;
+    return {
+      position,
+      zoneIndex: POSITION_ZONES.indexOf(randomZone)
+    };
+  };
+
+  // 生成新问题
+  const generateQuestion = () => {
+    const randomPair = wordBank[Math.floor(Math.random() * wordBank.length)];
+    setAnswerGenerated(false);
+    return {
+      malay: randomPair[0],
+      chinese: randomPair[1]
+    };
+  };
+
+  // 生成新僵尸
+  const generateZombie = (forceAnswer = false) => {
+    const usedPositions = zombies.map(z => z.zoneIndex);
+    const positionData = getRandomPosition(usedPositions);
+    
+    if (!positionData) return null; // 如果没有可用位置，不生成僵尸
+
+    if (forceAnswer || (!answerGenerated && currentQuestion)) {
+      setAnswerGenerated(true);
+      return {
+        id: Date.now(),
+        word: currentQuestion.malay,
+        isAnswer: true,
+        position: positionData.position,
+        zoneIndex: positionData.zoneIndex,
+        top: -50
+      };
+    } else {
+      let randomPair;
+      do {
+        randomPair = wordBank[Math.floor(Math.random() * wordBank.length)];
+      } while (currentQuestion && randomPair[0] === currentQuestion.malay);
+      
+      return {
+        id: Date.now(),
+        word: randomPair[0],
+        isAnswer: false,
+        position: positionData.position,
+        zoneIndex: positionData.zoneIndex,
+        top: -50
+      };
+    }
+  };
+
+  // 开始新游戏或新关卡
+  const startNewLevel = () => {
+    setZombies([]);
+    setAnswerGenerated(false);
+    setCurrentQuestion(generateQuestion());
+  };
+
+  const startNewGame = () => {
+    setScore(0);
+    setLives(3);
+    setGameOver(false);
+    setQuestionCount(0);
+    setLevel(1);
+    startNewLevel();
+  };
+
+  // 游戏初始化
+  useEffect(() => {
+    startNewGame();
+  }, []);
+
+  // 定期生成僵尸
+  useEffect(() => {
+    if (gameOver) return;
+    
+    // 立即生成正确答案的僵尸
+    if (!answerGenerated && currentQuestion) {
+      const zombie = generateZombie(true);
+      if (zombie) {
+        setZombies(prev => [...prev, zombie]);
+      }
+    }
+    
+    const interval = setInterval(() => {
+      const zombie = generateZombie();
+      if (zombie) {
+        setZombies(prev => [...prev, zombie]);
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [gameOver, currentQuestion, answerGenerated]);
+
+  // 僵尸移动
+  useEffect(() => {
+    if (gameOver) return;
+
+    const moveInterval = setInterval(() => {
+      setZombies(prev => {
+        const newZombies = prev.map(zombie => ({
+          ...zombie,
+          top: zombie.top + 1.5
+        })).filter(zombie => zombie.top < window.innerHeight - 100);
+
+        if (prev.length > newZombies.length) {
+          setLives(lives => {
+            const newLives = lives - 1;
+            if (newLives <= 0) {
+              setGameOver(true);
+            }
+            return newLives;
+          });
+        }
+
+        return newZombies;
+      });
+    }, 50);
+
+    return () => clearInterval(moveInterval);
+  }, [gameOver]);
+
+  // 点击僵尸
+  const handleClick = (zombie) => {
+    if (gameOver) return;
+
+    if (zombie.isAnswer) {
+      setScore(score + 1);
+      setQuestionCount(prev => {
+        const newCount = prev + 1;
+        if (newCount >= QUESTIONS_PER_LEVEL) {
+          // 完成当前关卡
+          setLevel(level + 1);
+          setQuestionCount(0);
+          startNewLevel();
+        } else {
+          setCurrentQuestion(generateQuestion());
+        }
+        return newCount;
+      });
+    } else {
+      setLives(lives => {
+        const newLives = lives - 1;
+        if (newLives <= 0) {
+          setGameOver(true);
+        }
+        return newLives;
+      });
+    }
+    
+    setZombies(prev => prev.filter(z => z.id !== zombie.id));
+  };
+
+  return (
+    <div className="relative h-screen w-full bg-gray-900 overflow-hidden">
+      {/* 状态栏 */}
+      <div className="absolute top-0 left-0 right-0 p-4 flex justify-between bg-gray-800 text-white">
+        <div className="flex space-x-8">
+          <div>第 {level} 关</div>
+          <div>题目: {questionCount}/{QUESTIONS_PER_LEVEL}</div>
+          <div>分数: {score}</div>
+        </div>
+        <div>生命值: {'❤️'.repeat(lives)}</div>
+      </div>
+
+      {/* 当前题目 */}
+      <div className="absolute top-20 left-0 right-0 text-center text-white text-2xl font-bold bg-gray-800 bg-opacity-75 py-4">
+        请选择"{currentQuestion?.chinese}"的马来文
+      </div>
+
+      {/* 僵尸 */}
+      {zombies.map(zombie => (
+        <div
+          key={zombie.id}
+          className="absolute cursor-pointer transition-transform hover:scale-110"
+          style={{
+            left: `${zombie.position}%`,
+            top: zombie.top,
+          }}
+          onClick={() => handleClick(zombie)}
+        >
+          <div className="bg-green-700 p-2 rounded-lg shadow-lg">
+            <span className="text-white font-bold">{zombie.word}</span>
+          </div>
+          <div className="text-4xl">🧟</div>
+        </div>
+      ))}
+
+      {/* 游戏结束对话框 */}
+      {gameOver && (
+        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white p-8 rounded-lg text-center">
+            <h2 className="text-2xl font-bold mb-4">游戏结束!</h2>
+            <p className="mb-2">最终得分: {score}</p>
+            <p className="mb-4">达到第 {level} 关</p>
+            <button
+              onClick={startNewGame}
+              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+            >
+              重新开始
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 游戏说明 */}
+      <div className="absolute bottom-4 left-4 text-white text-sm">
+        <p>点击对应题目的马来文僵尸得分</p>
+        <p>每关需答对10题才能进入下一关</p>
+        <p>点错或让僵尸触底都会扣生命值</p>
+        <p>三次失误后游戏结束</p>
+      </div>
+    </div>
+  );
+};
+
+export default ZombieGame;
